@@ -9,6 +9,7 @@ Fetch the latest video from any YouTube channel and extract all trading informat
 3. **Extracts all trading signals**: tickers, direction, entry logic, key price levels, stop-loss/take-profit, position sizing, time horizon
 4. Captures macro views, sector rotation, capital flows, event-driven catalysts
 5. Outputs structured Chinese trading notes with ticker tables, risk flags, and uncertainty markers
+6. Supports key frame extraction for on-screen charts and data
 
 ## Prerequisites
 
@@ -17,33 +18,72 @@ Fetch the latest video from any YouTube channel and extract all trading informat
 - [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api): `pip install youtube-transcript-api`
 - ffmpeg (optional, for key frame extraction)
 
+### For standalone LLM mode
+
+- `pip install openai` (for OpenAI) or `pip install anthropic` (for Anthropic)
+- Set `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` environment variable
+
 ## Usage
 
-### Standalone
+### 1. Video Discovery
 
 ```bash
-# Fetch latest video from Rhino Finance (default)
+# Get latest video from Rhino Finance (default)
 python3 scripts/latest_video.py --count 1
 
-# Fetch from any YouTube channel
+# Get from any YouTube channel
 python3 scripts/latest_video.py --channel "https://www.youtube.com/@SomeChannel" --count 1
 
-# Fetch multiple recent videos
+# Get multiple recent videos
 python3 scripts/latest_video.py --count 3
+```
 
-# Quick discovery without full metadata enrichment
-python3 scripts/latest_video.py --count 1 --no-enrich
+### 2. Transcript Extraction
 
-# Extract key frames at specific timestamps (for charts/tables on screen)
-python3 scripts/latest_video.py --video-url "https://www.youtube.com/watch?v=VIDEO_ID" --timestamps 3100,3130,3175
+```bash
+# Fetch transcript (auto: API → captions → audio fallback)
+python3 scripts/transcript.py "https://www.youtube.com/watch?v=VIDEO_ID"
 
-# Save frames to a custom directory
-python3 scripts/latest_video.py --video-url "https://www.youtube.com/watch?v=VIDEO_ID" --timestamps 120,240 --output-dir ./frames
+# Force a specific method
+python3 scripts/transcript.py "VIDEO_URL" --method captions
+
+# Save to file
+python3 scripts/transcript.py "VIDEO_URL" -o transcript.txt
+```
+
+### 3. Full Analysis (transcript + LLM summary)
+
+```bash
+# Analyze latest video (auto-detects LLM provider from env)
+python3 scripts/analyze.py
+
+# Analyze a specific video
+python3 scripts/analyze.py --url "https://www.youtube.com/watch?v=VIDEO_ID"
+
+# Use specific provider/model
+python3 scripts/analyze.py --provider openai --model gpt-4o
+python3 scripts/analyze.py --provider anthropic --model claude-sonnet-4-20250514
+
+# Save to file
+python3 scripts/analyze.py -o summary.md
+
+# Transcript only (skip LLM)
+python3 scripts/analyze.py --transcript-only
+```
+
+### 4. Key Frame Extraction
+
+```bash
+# Extract frames at specific timestamps (for on-screen charts/tables)
+python3 scripts/latest_video.py --video-url "VIDEO_URL" --timestamps 3100,3130,3175
+
+# Save to custom directory
+python3 scripts/latest_video.py --video-url "VIDEO_URL" --timestamps 120,240 --output-dir ./frames
 ```
 
 ### As a Claude Code / Codex Skill
 
-Copy or symlink this directory into your skills folder:
+Copy or symlink into your skills folder:
 
 ```bash
 # Claude Code
@@ -53,12 +93,12 @@ cp -r rhino-finance-latest ~/.claude/skills/
 cp -r rhino-finance-latest ~/.codex/skills/
 ```
 
-Then invoke with:
+Then invoke:
 ```
 /rhino-finance-latest
 ```
 
-Or just ask naturally:
+Or ask naturally:
 - "犀牛哥最新视频讲了什么"
 - "帮我总结这个 YouTube 视频的交易信息 https://www.youtube.com/watch?v=xxx"
 
@@ -66,38 +106,37 @@ Or just ask naturally:
 
 ```
 rhino-finance-latest/
+├── SKILL.md                    # Claude Code / Codex skill definition
 ├── scripts/
-│   └── latest_video.py       # Fetch latest videos from YouTube
+│   ├── latest_video.py         # Video discovery (channel → latest uploads)
+│   ├── transcript.py           # Transcript extraction (API → captions → audio)
+│   └── analyze.py              # Full pipeline: discover → transcript → LLM summary
 ├── references/
-│   └── core-thesis.md        # Durable thesis record (updated over time)
+│   └── core-thesis.md          # Durable thesis record (updated over time)
 ├── agents/
-│   └── openai.yaml           # OpenAI agent config
+│   └── openai.yaml             # OpenAI agent config
 ├── README.md
 ├── LICENSE
 └── .gitignore
 ```
 
-## Transcript Workflow
+## How It Works
 
-The skill tries these methods in order:
-
-1. **youtube-transcript-api** — fastest, fewest rate-limit issues
-2. **yt-dlp captions** — fallback when API is rate-limited
-3. **Audio transcription** — last resort (requires whisper)
-
-## Output Format
-
-Summaries cover all actionable trading info:
-
-| Section | Content |
-|---|---|
-| **一句话结论** | One-line verdict on the video's core call |
-| **核心观点** | Market regime, direction, thesis, timing |
-| **宏观/消息** | Fed, data, earnings, policy, geopolitics |
-| **板块与主题** | Sector rotation, themes, capital flows |
-| **个股/ETF** | Tickers, catalysts, levels, setups, invalidation |
-| **交易含义** | Continuation / invalidation conditions |
-| **风险提醒** | Chasing, event, liquidity, concentration risks |
+```
+YouTube Channel
+     │
+     ▼
+latest_video.py ──→ Video URL + Metadata
+     │
+     ▼
+transcript.py  ──→ Transcript (API / captions / audio fallback)
+     │
+     ▼
+analyze.py     ──→ LLM summarization (OpenAI / Anthropic)
+     │
+     ▼
+Structured trading summary (Chinese)
+```
 
 ## License
 

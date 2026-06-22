@@ -1,0 +1,7 @@
+interface:
+  display_name: "Rhino Finance Latest"
+  short_description: "Fetch and translate Rhino's latest video"
+  default_prompt: "Use rhino-finance-latest to fetch Rhino Finance's latest YouTube video, obtain transcript or captions, translate the content into Chinese, and summarize market and trading takeaways."
+
+policy:
+  allow_implicit_invocation: true

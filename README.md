@@ -1,10 +1,10 @@
 # rhino-finance-latest
 
-Fetch the latest video from [Rhino Finance / 犀牛哥](https://www.youtube.com/@RhinoFinance) and extract all trading information.
+Fetch the latest video from any YouTube channel and extract all trading information. Defaults to [Rhino Finance / 犀牛哥](https://www.youtube.com/@RhinoFinance).
 
 ## What it does
 
-1. Auto-discovers the latest public upload from Rhino Finance's YouTube channel
+1. Auto-discovers the latest public upload from a YouTube channel
 2. Fetches transcript or captions (Chinese/English)
 3. **Extracts all trading signals**: tickers, direction, entry logic, key price levels, stop-loss/take-profit, position sizing, time horizon
 4. Captures macro views, sector rotation, capital flows, event-driven catalysts
@@ -22,8 +22,11 @@ Fetch the latest video from [Rhino Finance / 犀牛哥](https://www.youtube.com/
 ### Standalone
 
 ```bash
-# Fetch latest video info
+# Fetch latest video from Rhino Finance (default)
 python3 scripts/latest_video.py --count 1
+
+# Fetch from any YouTube channel
+python3 scripts/latest_video.py --channel "https://www.youtube.com/@SomeChannel" --count 1
 
 # Fetch multiple recent videos
 python3 scripts/latest_video.py --count 3
@@ -49,7 +52,9 @@ Then invoke with:
 /rhino-finance-latest
 ```
 
-Or just ask naturally: "犀牛哥最新视频讲了什么"
+Or just ask naturally:
+- "犀牛哥最新视频讲了什么"
+- "帮我总结这个 YouTube 视频的交易信息 https://www.youtube.com/watch?v=xxx"
 
 ## Project Structure
 

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Fetch latest public uploads from Rhino Finance's YouTube channel."""
+"""Fetch latest public uploads from a YouTube channel.
+
+Defaults to Rhino Finance / 犀牛哥 if no channel is specified.
+Supports any YouTube channel via the --channel flag.
+"""
 
 from __future__ import annotations
 

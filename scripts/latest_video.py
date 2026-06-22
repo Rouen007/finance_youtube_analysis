@@ -23,20 +23,7 @@ def yt_dlp_bin() -> str:
     found = shutil.which("yt-dlp")
     if found:
         return found
-
-    candidates = [
-        "/usr/local/bin/yt-dlp",
-        "/opt/homebrew/bin/yt-dlp",
-        os.path.expanduser("~/Library/Python/3.9/bin/yt-dlp"),
-        os.path.expanduser("~/Library/Python/3.10/bin/yt-dlp"),
-        os.path.expanduser("~/Library/Python/3.11/bin/yt-dlp"),
-        os.path.expanduser("~/Library/Python/3.12/bin/yt-dlp"),
-        os.path.expanduser("~/.local/bin/yt-dlp"),
-    ]
-    for candidate in candidates:
-        if os.path.exists(candidate):
-            return candidate
-    raise RuntimeError("yt-dlp not found; install with: python3 -m pip install --user yt-dlp")
+    raise RuntimeError("yt-dlp not found; install with: pip install yt-dlp")
 
 
 def run_yt_dlp(channel_url: str, count: int) -> list[dict[str, Any]]:
@@ -109,6 +96,39 @@ def enrich_metadata(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return enriched
 
 
+def extract_frames(video_url: str, timestamps: list[int], output_dir: str = "/tmp") -> list[str]:
+    """Extract key frames from a video at given timestamps (seconds).
+
+    Uses ffmpeg seek to pull only the needed HLS chunks — no full download.
+    Returns a list of saved frame paths.
+    """
+    # Get stream URL (one request only)
+    cmd = [yt_dlp_bin(), "-f", "best[height<=480]/best", "--get-url", video_url]
+    proc = subprocess.run(cmd, text=True, capture_output=True, check=False)
+    if proc.returncode != 0:
+        raise RuntimeError(f"Failed to get stream URL: {proc.stderr.strip()}")
+    stream_url = proc.stdout.strip().split("\n")[0]
+
+    paths = []
+    procs = []
+    for t in timestamps:
+        out_path = os.path.join(output_dir, f"frame_{t}.jpg")
+        ffmpeg_cmd = [
+            "ffmpeg", "-ss", str(t),
+            "-i", stream_url,
+            "-vframes", "1", "-update", "1",
+            "-q:v", "2", out_path, "-y",
+        ]
+        procs.append((out_path, subprocess.Popen(ffmpeg_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)))
+
+    for out_path, p in procs:
+        p.wait()
+        if p.returncode == 0 and os.path.exists(out_path):
+            paths.append(out_path)
+
+    return paths
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--channel", default=DEFAULT_CHANNEL, help="YouTube channel URL")
@@ -118,8 +138,36 @@ def main() -> int:
         action="store_true",
         help="Skip per-video metadata lookup after flat playlist discovery",
     )
+    parser.add_argument(
+        "--video-url",
+        help="Extract frames from this video URL (use with --timestamps)",
+    )
+    parser.add_argument(
+        "--timestamps",
+        help="Comma-separated timestamps in seconds for frame extraction (e.g. 3100,3130,3175)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="/tmp",
+        help="Directory to save extracted frames (default: /tmp)",
+    )
     args = parser.parse_args()
 
+    # Frame extraction mode
+    if args.video_url and args.timestamps:
+        if not shutil.which("ffmpeg"):
+            print("error: ffmpeg not found; install with: brew install ffmpeg / apt install ffmpeg", file=sys.stderr)
+            return 1
+        timestamps = [int(t.strip()) for t in args.timestamps.split(",")]
+        try:
+            paths = extract_frames(args.video_url, timestamps, args.output_dir)
+            print(json.dumps({"frames": paths}, ensure_ascii=False, indent=2))
+        except Exception as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        return 0
+
+    # Channel listing mode
     try:
         items = run_yt_dlp(args.channel, args.count)
         if not args.no_enrich:

@@ -33,6 +33,12 @@ python3 scripts/latest_video.py --count 3
 
 # Quick discovery without full metadata enrichment
 python3 scripts/latest_video.py --count 1 --no-enrich
+
+# Extract key frames at specific timestamps (for charts/tables on screen)
+python3 scripts/latest_video.py --video-url "https://www.youtube.com/watch?v=VIDEO_ID" --timestamps 3100,3130,3175
+
+# Save frames to a custom directory
+python3 scripts/latest_video.py --video-url "https://www.youtube.com/watch?v=VIDEO_ID" --timestamps 120,240 --output-dir ./frames
 ```
 
 ### As a Claude Code / Codex Skill

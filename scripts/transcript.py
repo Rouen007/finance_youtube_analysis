@@ -2,7 +2,7 @@
 """Fetch transcript or captions from a YouTube video.
 
 Tries youtube-transcript-api first, falls back to yt-dlp captions,
-and as a last resort extracts audio for transcription.
+and as a last resort extracts audio and transcribes with faster-whisper.
 """
 
 from __future__ import annotations
@@ -117,15 +117,43 @@ def fetch_via_audio(video_url: str, output_dir: str) -> str | None:
     return None
 
 
+def transcribe_with_whisper(audio_path: str, language: str = "zh",
+                             model_size: str = "small") -> list[dict] | None:
+    """Transcribe audio file with faster-whisper. Returns list of {start, text} or None."""
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError:
+        print("faster-whisper not installed: pip install faster-whisper", file=sys.stderr)
+        return None
+
+    try:
+        model = WhisperModel(model_size, device="cpu", compute_type="int8")
+        segments_gen, info = model.transcribe(audio_path, language=language, beam_size=5)
+        print(f"Whisper detected language: {info.language} ({info.language_probability:.2f})",
+              file=sys.stderr)
+        segments = []
+        for seg in segments_gen:
+            segments.append({"start": int(seg.start), "text": seg.text})
+        return segments
+    except Exception as exc:
+        print(f"whisper transcription failed: {exc}", file=sys.stderr)
+        return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("video_url", help="YouTube video URL or ID")
     parser.add_argument("--output", "-o", help="Output file path (default: stdout)")
     parser.add_argument("--output-dir", default=None, help="Temp directory for intermediate files")
-    parser.add_argument("--method", choices=["api", "captions", "audio"], default="api",
-                        help="Preferred method: api (default), captions, audio")
+    parser.add_argument("--method", choices=["api", "captions", "whisper", "audio", "auto"],
+                        default="auto",
+                        help="Preferred method: auto (default), api, captions, whisper, audio")
     parser.add_argument("--languages", default="zh-Hans,zh-Hant,yue,en",
                         help="Comma-separated language codes for API method")
+    parser.add_argument("--whisper-model", default="small",
+                        help="Whisper model size: tiny/base/small/medium/large (default: small)")
+    parser.add_argument("--whisper-lang", default="zh",
+                        help="Whisper language hint (default: zh)")
     args = parser.parse_args()
 
     video_id = extract_video_id(args.video_url)
@@ -137,18 +165,44 @@ def main() -> int:
     segments = None
     method_used = None
 
-    # Try methods in order based on preference
-    if args.method == "api":
+    if args.method == "auto":
+        # Try all methods in order
+        print("Trying youtube-transcript-api...", file=sys.stderr)
         segments = fetch_via_api(video_id, languages)
         method_used = "api"
+
         if not segments:
+            print("Trying yt-dlp captions...", file=sys.stderr)
             segments = fetch_via_ytdlp_captions(video_url, output_dir)
             method_used = "captions"
+
+        if not segments:
+            print("Trying audio + whisper...", file=sys.stderr)
+            audio_path = fetch_via_audio(video_url, output_dir)
+            if audio_path:
+                segments = transcribe_with_whisper(audio_path, language=args.whisper_lang,
+                                                   model_size=args.whisper_model)
+                method_used = "whisper"
+
+    elif args.method == "api":
+        segments = fetch_via_api(video_id, languages)
+        method_used = "api"
+
     elif args.method == "captions":
         segments = fetch_via_ytdlp_captions(video_url, output_dir)
         method_used = "captions"
-    else:
-        # audio method
+
+    elif args.method == "whisper":
+        print("Downloading audio...", file=sys.stderr)
+        audio_path = fetch_via_audio(video_url, output_dir)
+        if audio_path:
+            print("Transcribing with whisper...", file=sys.stderr)
+            segments = transcribe_with_whisper(audio_path, language=args.whisper_lang,
+                                               model_size=args.whisper_model)
+            method_used = "whisper"
+
+    elif args.method == "audio":
+        # Just extract audio and return path
         audio_path = fetch_via_audio(video_url, output_dir)
         if audio_path:
             print(json.dumps({"method": "audio", "path": audio_path}, ensure_ascii=False))

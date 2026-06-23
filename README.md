@@ -16,7 +16,8 @@ Fetch the latest video from any YouTube channel and extract all trading informat
 - Python 3.9+
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp): `pip install yt-dlp`
 - [youtube-transcript-api](https://github.com/jdepoix/youtube-transcript-api): `pip install youtube-transcript-api`
-- ffmpeg (required for frame extraction): `brew install ffmpeg`
+- [faster-whisper](https://github.com/SYSTRAN/faster-whisper): `pip install faster-whisper` (for audio transcription, needed for most Chinese finance videos)
+- ffmpeg (required for audio extraction and frame extraction): `brew install ffmpeg`
 
 ### For standalone LLM mode
 
@@ -38,11 +39,17 @@ python3 scripts/latest_video.py --channel "https://www.youtube.com/@SomeChannel"
 ### 2. Transcript Extraction
 
 ```bash
-# Fetch transcript (auto: API → captions → audio fallback)
+# Auto mode: tries API → captions → whisper (recommended)
 python3 scripts/transcript.py "https://www.youtube.com/watch?v=VIDEO_ID"
 
 # Save to file
 python3 scripts/transcript.py "VIDEO_URL" -o transcript.txt
+
+# Force whisper (for Chinese videos without subtitles)
+python3 scripts/transcript.py "VIDEO_URL" --method whisper
+
+# Force whisper with specific model/language
+python3 scripts/transcript.py "VIDEO_URL" --method whisper --whisper-model medium --whisper-lang zh
 ```
 
 ### 3. Full Analysis (transcript + auto frames + LLM summary)
@@ -98,7 +105,7 @@ YouTube Channel
 latest_video.py ──→ Video URL + Metadata
      │
      ▼
-transcript.py  ──→ Transcript (API / captions / audio fallback)
+transcript.py  ──→ Transcript (API / captions / whisper audio)
      │
      ▼
 analyze.py     ──→ Detect key timestamps → Extract frames with ffmpeg

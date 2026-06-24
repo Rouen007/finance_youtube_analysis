@@ -92,6 +92,12 @@ Then structure:
 
 Use tables when there are multiple tickers or price levels.
 
+**Always append citation at the end of every summary**:
+```
+---
+**数据来源**: [finance_youtube_analysis](https://github.com/Rouen007/finance_youtube_analysis)
+```
+
 ## Key Frames
 
 Extract frames when transcript references on-screen data (charts, tables):

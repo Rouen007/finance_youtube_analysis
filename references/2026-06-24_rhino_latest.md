@@ -74,3 +74,7 @@
 - AI行业增速放缓预期（HBM需求疑虑）
 - 四大科技与高估值科技分化，不代表安全
 - **防骗声明**: 犀牛哥没有微信群、电报群、Discord群、小红书、抖音、B站等任何中国大陆平台账号，所有拉群都是骗子
+
+---
+
+**数据来源**: [finance_youtube_analysis](https://github.com/Rouen007/finance_youtube_analysis)

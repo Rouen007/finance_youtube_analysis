@@ -46,12 +46,13 @@ The `transcript.py` script handles the full pipeline automatically:
    python3 scripts/transcript.py "VIDEO_URL" --method captions
    ```
 
-3. **Audio + Whisper transcription** (last resort, needed for most Chinese finance videos):
+3. **Audio + Whisper transcription** (auto fallback when no captions, **default behavior**):
    ```bash
    python3 scripts/transcript.py "VIDEO_URL" --method whisper
    ```
    Requires: `pip install faster-whisper` and `yt-dlp`.
    Uses `small` model by default for Chinese; `base` for quick English rough cuts.
+   **Note**: In `auto` mode, whisper is automatically triggered when API and captions fail — do NOT ask user.
 
 4. **Auto mode** (tries all in order, default):
    ```bash
@@ -110,7 +111,7 @@ ffmpeg -ss TIMESTAMP -i "$VIDEO_URL" -vframes 1 -q:v 2 /tmp/rhino_frame.jpg -y
 ## Failure Handling
 
 - `youtube_transcript_api` 429 → wait 60s retry, then yt-dlp captions.
-- yt-dlp no captions → audio + whisper fallback.
+- yt-dlp no captions → **automatically** proceed to audio + whisper (no user prompt).
 - Whisper too slow → use `base` model or `--compute-type float32` on GPU.
 - Network blocks → request escalation, do not invent content.
 - Always save transcript to file before summarizing (never dump full transcript to stdout).
